@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////
-///                                                               //// 
+///                                                               ////
 /// Wishbone multiplexer, burst-compatible                        ////
 ///                                                               ////
 /// Simple mux with an arbitrary number of slaves.                ////
@@ -55,7 +55,7 @@ module wb_mux
     parameter num_slaves = 2, // Number of slaves
     parameter [num_slaves*aw-1:0] MATCH_ADDR = 0,
     parameter [num_slaves*aw-1:0] MATCH_MASK = 0)
-   
+
    (input                      wb_clk_i,
     input 		       wb_rst_i,
 
@@ -71,11 +71,11 @@ module wb_mux
     output [dw-1:0] 	       wbm_dat_o,
     output 		       wbm_ack_o,
     output 		       wbm_err_o,
-    output 		       wbm_rty_o, 
+    output 		       wbm_rty_o,
     // Wishbone Slave interface
     output [num_slaves*aw-1:0] wbs_adr_o,
     output [num_slaves*dw-1:0] wbs_dat_o,
-    output [num_slaves*4-1:0]  wbs_sel_o, 
+    output [num_slaves*4-1:0]  wbs_sel_o,
     output [num_slaves-1:0]    wbs_we_o,
     output [num_slaves-1:0]    wbs_cyc_o,
     output [num_slaves-1:0]    wbs_stb_o,
@@ -86,13 +86,11 @@ module wb_mux
     input [num_slaves-1:0]     wbs_err_i,
     input [num_slaves-1:0]     wbs_rty_i);
 
-`include "verilog_utils.vh"
-
 ///////////////////////////////////////////////////////////////////////////////
 // Master/slave connection
 ///////////////////////////////////////////////////////////////////////////////
 
-   localparam slave_sel_bits = num_slaves > 1 ? `clog2(num_slaves) : 1;
+   localparam slave_sel_bits = num_slaves > 1 ? $clog2(num_slaves) : 1;
 
    reg  			 wbm_err;
    wire [slave_sel_bits-1:0] 	 slave_sel;
@@ -106,7 +104,23 @@ module wb_mux
       end
    endgenerate
 
-   assign slave_sel = ff1(match, num_slaves);
+//
+// Find First 1 - Start from MSB and count downwards, returns 0 when no bit set
+//
+   function [slave_sel_bits-1:0] ff1;
+      input [num_slaves-1:0] in;
+      integer 		     i;
+
+      begin
+	 ff1 = 0;
+	 for (i = num_slaves-1; i >= 0; i=i-1) begin
+	    if (in[i])
+	      ff1 = i;
+	 end
+      end
+   endfunction
+
+   assign slave_sel = ff1(match);
 
    always @(posedge wb_clk_i)
      wbm_err <= wbm_cyc_i & !(|match);
@@ -118,7 +132,7 @@ module wb_mux
 
    assign wbs_cyc_o = match & (wbm_cyc_i << slave_sel);
    assign wbs_stb_o = {num_slaves{wbm_stb_i}};
-   
+
    assign wbs_cti_o = {num_slaves{wbm_cti_i}};
    assign wbs_bte_o = {num_slaves{wbm_bte_i}};
 

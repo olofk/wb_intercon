@@ -36,7 +36,7 @@
 module wb_arbiter
  #(parameter dw = 32,
    parameter aw = 32,
-   parameter num_masters = 2)
+   parameter num_masters = 0)
   (
    input 		       wb_clk_i,
    input 		       wb_rst_i,
@@ -70,13 +70,11 @@ module wb_arbiter
    input 		       wbs_rty_i);
 
 
-`include "verilog_utils.vh"
-
 ///////////////////////////////////////////////////////////////////////////////
 // Parameters
 ///////////////////////////////////////////////////////////////////////////////
 
-   localparam master_sel_bits = num_masters > 1 ? `clog2(num_masters) : 1;
+   localparam master_sel_bits = num_masters > 1 ? $clog2(num_masters) : 1;
 
    wire [num_masters-1:0]     grant;
    wire [master_sel_bits-1:0] master_sel;
