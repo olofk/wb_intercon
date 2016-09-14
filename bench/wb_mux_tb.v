@@ -1,15 +1,14 @@
-module wb_mux_tb
-  (input wb_clk_i,
-   input wb_rst_i,
-   output done);
+module wb_mux_tb;
 
    localparam NUM_SLAVES = 4;
    
    localparam aw = 32;
    localparam dw = 32;
 
-   localparam MEMORY_SIZE_WORDS = 32'h100;
+   localparam SEGMENT_SIZE = 32'h100;
    localparam MEMORY_SIZE_BITS  = 8;
+
+   parameter                TRANSACTIONS_PARAM    = 1000;
 
    /*TODO: Find a way to generate MATCH_ADDR and MATCH_MASK based on memory
            size and number of slaves. Missing support for constant
@@ -19,6 +18,9 @@ module wb_mux_tb
 						32'h00000100,
 						32'h00000000};
    localparam [dw*NUM_SLAVES-1:0] MATCH_MASK = {NUM_SLAVES{32'hffffff00}};
+
+   reg wb_clk = 1'b1;
+   reg wb_rst = 1'b1;
    
    wire [NUM_SLAVES*aw-1:0] wbs_m2s_adr;
    wire [NUM_SLAVES*dw-1:0] wbs_m2s_dat;
@@ -51,11 +53,30 @@ module wb_mux_tb
    
    genvar 	 i;
 
+   integer 		     TRANSACTIONS;
+   
+   task run;
+      begin
+	 wb_rst = 1'b0;
+	 if($value$plusargs("transactions=%d", TRANSACTIONS))
+	   transactor.set_transactions(TRANSACTIONS);
+	 
+	 transactor.display_settings;
+	 transactor.run();
+	 transactor.display_stats;
+      end
+   endtask
+	 
+   always #5 wb_clk <= ~wb_clk;
+
    wb_bfm_transactor
-     #(.MEM_HIGH (MEMORY_SIZE_WORDS*NUM_SLAVES-1))
-   wb_bfm_transactor0
-     (.wb_clk_i (wb_clk_i),
-      .wb_rst_i (wb_rst_i),
+     #(.NUM_SEGMENTS (NUM_SLAVES),
+       .AUTORUN (0),
+       .VERBOSE (0),
+       .SEGMENT_SIZE (SEGMENT_SIZE))
+   transactor
+     (.wb_clk_i (wb_clk),
+      .wb_rst_i (wb_rst),
       .wb_adr_o (wb_m2s_adr),
       .wb_dat_o (wb_m2s_dat),
       .wb_sel_o (wb_m2s_sel),
@@ -87,8 +108,8 @@ module wb_mux_tb
        .MATCH_ADDR (MATCH_ADDR),
        .MATCH_MASK (MATCH_MASK))
    wb_mux0
-   (.wb_clk_i    (wb_clk_i),
-    .wb_rst_i     (wb_rst_i),
+   (.wb_clk_i    (wb_clk),
+    .wb_rst_i     (wb_rst),
 
     // Master Interface
     .wbm_adr_i (wb_m2s_adr),
@@ -123,10 +144,10 @@ module wb_mux_tb
 	 assign slave_reads[i]  = wb_mem_model0.reads;
 	 
 	 wb_bfm_memory #(.DEBUG (0),
-			 .mem_size_bytes(MEMORY_SIZE_WORDS*(dw/8)))
+			 .mem_size_bytes(SEGMENT_SIZE))
 	 wb_mem_model0
-	    (.wb_clk_i (wb_clk_i),
-	     .wb_rst_i (wb_rst_i),
+	    (.wb_clk_i (wb_clk),
+	     .wb_rst_i (wb_rst),
 	     .wb_adr_i (wbs_m2s_adr[i*aw+:aw] & (2**MEMORY_SIZE_BITS-1)),
 	     .wb_dat_i (wbs_m2s_dat[i*dw+:dw]),
 	     .wb_sel_i (wbs_m2s_sel[i*4+:4]),

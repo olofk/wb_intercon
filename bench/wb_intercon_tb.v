@@ -15,11 +15,7 @@ module wb_intercon_tb;
 
    vlog_tb_utils vlog_tb_utils0();
 
-   wb_mux_tb
-   wb_mux_tb0
-     (.wb_clk_i (wb_clk),
-      .wb_rst_i (wb_mux_rst),
-      .done     (wb_mux_done));
+   wb_mux_tb wb_mux_tb0();
    
    wb_arbiter_tb
      #(.NUM_MASTERS (WB_ARB_NUM_MASTERS))
@@ -35,16 +31,6 @@ module wb_intercon_tb;
    
    always #5 wb_clk <= ~wb_clk;
 
-   task mux_test;
-      begin
-	 $display("==Running wb_mux tests==");
-	 #100 wb_mux_rst <= 0;
-	 @(posedge wb_mux_done);
-	 #100 $display("==wb_mux tests done==");
-	 wb_mux_rst <= 1;
-      end
-   endtask
-   
    task arbiter_test;
       begin
 	 $display("==Running wb_arbiter tests==");
@@ -66,8 +52,7 @@ module wb_intercon_tb;
    endtask
    
    initial begin
-
-      mux_test;
+      wb_mux_tb0.run;
       arbiter_test;
       upsizer_test;
 
