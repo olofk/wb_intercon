@@ -40,7 +40,7 @@ module wb_intercon_tb;
 	 wb_arb_rst <= 1;
       end
    endtask
-   
+/*
    task upsizer_test;
       begin
 	 $display("==Running wb_upsizer tests==");
@@ -50,11 +50,11 @@ module wb_intercon_tb;
 	 wb_upz_rst <= 1;
       end
    endtask
-   
+*/
    initial begin
       wb_mux_tb0.run;
       arbiter_test;
-      upsizer_test;
+      //upsizer_test;
 
       #3 $finish;
    end
