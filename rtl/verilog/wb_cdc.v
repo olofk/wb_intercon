@@ -55,7 +55,7 @@ module wb_cdc
    reg 		   wbs_cs = 1'b0;
 
    cc561
-     #(.DW (AW+32+1))
+     #(.DW (AW+32+4+1))
    cdc_m2s
      (.aclk  (wbm_clk),
       .arst  (wbm_rst),
