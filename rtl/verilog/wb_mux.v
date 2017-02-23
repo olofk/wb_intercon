@@ -90,7 +90,8 @@ module wb_mux
 // Master/slave connection
 ///////////////////////////////////////////////////////////////////////////////
 
-   localparam slave_sel_bits = num_slaves > 1 ? $clog2(num_slaves) : 1;
+   //Use parameter instead of localparam to work around a bug in Xilinx ISE
+   parameter slave_sel_bits = num_slaves > 1 ? $clog2(num_slaves) : 1;
 
    reg  			 wbm_err;
    wire [slave_sel_bits-1:0] 	 slave_sel;
