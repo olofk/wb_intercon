@@ -61,6 +61,7 @@ module wb_arbiter_tb
    integer 		     TRANSACTIONS;
 
    task run;
+      integer idx;
       begin
 	 wb_rst = 1'b0;
          @(posedge done);
@@ -77,10 +78,10 @@ module wb_arbiter_tb
    generate
       for(i=0;i<NUM_MASTERS;i=i+1) begin : masters
          initial begin
-	    if($value$plusargs("transactions=%d", TRANSACTIONS))
-	      transactor.set_transactions(TRANSACTIONS);
 
             @(negedge wb_rst);
+	    if($value$plusargs("transactions=%d", TRANSACTIONS))
+	      transactor.set_transactions(TRANSACTIONS);
 	    transactor.display_settings;
 	    transactor.run();
 	    transactor.display_stats;
@@ -109,8 +110,6 @@ module wb_arbiter_tb
 	     .done(done_int[i]));
       end // block: slaves
    endgenerate
-
-   integer 	 idx;
 
    assign done = &done_int;
 
