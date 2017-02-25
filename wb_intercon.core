@@ -1,12 +1,12 @@
 CAPI=1
 [main]
-name = ::wb_intercon:1.2
+name = ::wb_intercon:1.2.1
 description = Wishbone Bus Interconnect utilities
 depend =
  >=verilog-arbiter-0-r1
  cdc_utils
  wb_common
-simulators = icarus modelsim
+simulators = icarus modelsim xsim
 
 [fileset rtl_files]
 files =
@@ -42,7 +42,10 @@ paramtype   = plusarg
 scope       = private
 
 [icarus]
-depend = >=vlog_tb_utils-1.0 >=wb_bfm-1.1
+depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
 
 [modelsim]
-depend = >=vlog_tb_utils-1.0 >=wb_bfm-1.1
+depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
+
+[xsim]
+depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
