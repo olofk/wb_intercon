@@ -67,7 +67,6 @@ module wb_arbiter_tb
 	 $display("Average wait times");
 	 for(idx=0;idx<NUM_MASTERS;idx=idx+1)
 	   $display("Master %0d : %f",idx, ack_delay[idx]/num_transactions[idx]);
-	 $display("All tests passed!");
       end
    endtask
 
@@ -160,7 +159,7 @@ module wb_arbiter_tb
 	 initial begin
 	    ack_delay[i] = 0;
 	    num_transactions[i] = 0;
-	    while(1) begin
+	    while(!done) begin
 	       @(posedge wbm_m2s_cyc[i]);
 	       start_time[i] = $time;
 	       @(posedge wbm_s2m_ack[i]);
