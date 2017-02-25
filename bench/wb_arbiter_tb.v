@@ -1,15 +1,19 @@
+`default_nettype none
 module wb_arbiter_tb
-  #(parameter NUM_MASTERS = 5)
-  (input wb_clk_i,
-   input wb_rst_i,
-   output done);
+  #(parameter NUM_MASTERS = 5,
+    parameter AUTORUN = 1);
 
    localparam aw = 32;
    localparam dw = 32;
 
    localparam MEMORY_SIZE_BITS  = 8;
    localparam MEMORY_SIZE_WORDS = 2**MEMORY_SIZE_BITS;
-   
+
+   parameter TRANSACTIONS_PARAM = 1000;
+
+   reg wb_clk = 1'b1;
+   reg wb_rst = 1'b1;
+
    wire [aw-1:0] wbs_m2s_adr;
    wire [dw-1:0] wbs_m2s_dat;
    wire [3:0] 	 wbs_m2s_sel;
@@ -39,17 +43,57 @@ module wb_arbiter_tb
    wire [31:0] 	 slave_writes;
    wire [31:0] 	 slave_reads;
    wire [NUM_MASTERS-1:0] done_int;
+   wire                   done;
+
+   generate
+      if (AUTORUN) begin
+         vlog_tb_utils vtu();
+         vlog_tap_generator #("wb_arbiter.tap", 1) vtg();
+
+         initial begin
+            #100 run;
+            vtg.ok("wb_arbiter: All tests passed!");
+            $finish;
+         end
+      end
+   endgenerate
+
+   integer 		     TRANSACTIONS;
+
+   task run;
+      begin
+	 wb_rst = 1'b0;
+         @(posedge done);
+	 $display("Average wait times");
+	 for(idx=0;idx<NUM_MASTERS;idx=idx+1)
+	   $display("Master %0d : %f",idx, ack_delay[idx]/num_transactions[idx]);
+	 $display("All tests passed!");
+      end
+   endtask
+
+   always #5 wb_clk <= ~wb_clk;
 
    genvar 	 i;
-   
+
    generate
       for(i=0;i<NUM_MASTERS;i=i+1) begin : masters
+         initial begin
+	    if($value$plusargs("transactions=%d", TRANSACTIONS))
+	      transactor.set_transactions(TRANSACTIONS);
+
+            @(negedge wb_rst);
+	    transactor.display_settings;
+	    transactor.run();
+	    transactor.display_stats;
+         end
+
 	 wb_bfm_transactor
 	    #(.MEM_HIGH((i+1)*MEMORY_SIZE_WORDS-1),
+              .AUTORUN (0),
 	      .MEM_LOW (i*MEMORY_SIZE_WORDS))
-	 wb_bfm_transactor0
-	    (.wb_clk_i (wb_clk_i),
-	     .wb_rst_i (wb_rst_i),
+	 transactor
+	    (.wb_clk_i (wb_clk),
+	     .wb_rst_i (wb_rst),
 	     .wb_adr_o (wbm_m2s_adr[i*aw+:aw]),
 	     .wb_dat_o (wbm_m2s_dat[i*dw+:dw]),
 	     .wb_sel_o (wbm_m2s_sel[i*4+:4]),
@@ -66,26 +110,17 @@ module wb_arbiter_tb
 	     .done(done_int[i]));
       end // block: slaves
    endgenerate
-   
+
    integer 	 idx;
 
    assign done = &done_int;
-   
-   always @(done) begin
-      if(done === 1) begin
-	 $display("Average wait times");
-	 for(idx=0;idx<NUM_MASTERS;idx=idx+1)
-	   $display("Master %0d : %f",idx, ack_delay[idx]/num_transactions[idx]);
-	 $display("All tests passed!");
-      end
-   end
 
    wb_arbiter
      #(.num_masters(NUM_MASTERS))
    wb_arbiter0
-     (.wb_clk_i    (wb_clk_i),
-      .wb_rst_i     (wb_rst_i),
-      
+     (.wb_clk_i    (wb_clk),
+      .wb_rst_i     (wb_rst),
+
       // Master Interface
       .wbm_adr_i (wbm_m2s_adr),
       .wbm_dat_i (wbm_m2s_dat),
@@ -112,7 +147,7 @@ module wb_arbiter_tb
       .wbs_ack_i (wbs_s2m_ack),
       .wbs_err_i (wbs_s2m_err),
       .wbs_rty_i (wbs_s2m_rty));
-   
+
    assign slave_writes = wb_mem_model0.writes;
    assign slave_reads  = wb_mem_model0.reads;
 
@@ -135,12 +170,12 @@ module wb_arbiter_tb
 	 end
       end
    endgenerate
-      
+
    wb_bfm_memory #(.DEBUG (0),
 		   .mem_size_bytes(MEMORY_SIZE_WORDS*(dw/8)*NUM_MASTERS))
    wb_mem_model0
-     (.wb_clk_i (wb_clk_i),
-      .wb_rst_i (wb_rst_i),
+     (.wb_clk_i (wb_clk),
+      .wb_rst_i (wb_rst),
       .wb_adr_i (wbs_m2s_adr),
       .wb_dat_i (wbs_m2s_dat),
       .wb_sel_i (wbs_m2s_sel),

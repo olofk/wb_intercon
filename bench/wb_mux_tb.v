@@ -1,7 +1,9 @@
-module wb_mux_tb;
+`default_nettype none
+module wb_mux_tb
+  #(parameter AUTORUN = 1);
 
    localparam NUM_SLAVES = 4;
-   
+
    localparam aw = 32;
    localparam dw = 32;
 
@@ -21,7 +23,7 @@ module wb_mux_tb;
 
    reg wb_clk = 1'b1;
    reg wb_rst = 1'b1;
-   
+
    wire [NUM_SLAVES*aw-1:0] wbs_m2s_adr;
    wire [NUM_SLAVES*dw-1:0] wbs_m2s_dat;
    wire [NUM_SLAVES*4-1:0]  wbs_m2s_sel;
@@ -50,23 +52,41 @@ module wb_mux_tb;
 
    wire [31:0] 	 slave_writes [0:NUM_SLAVES-1];
    wire [31:0] 	 slave_reads  [0:NUM_SLAVES-1];
-   
+
    genvar 	 i;
 
    integer 		     TRANSACTIONS;
-   
+
+   generate
+      if (AUTORUN) begin
+         vlog_tb_utils vtu();
+         vlog_tap_generator #("wb_mux.tap", 1) vtg();
+
+         initial begin
+            #100 run;
+            vtg.ok("wb_mux: All tests passed!");
+            $finish;
+         end
+      end
+   endgenerate
+
    task run;
+      integer idx;
       begin
 	 wb_rst = 1'b0;
-	 if($value$plusargs("transactions=%d", TRANSACTIONS))
+         if($value$plusargs("transactions=%d", TRANSACTIONS))
 	   transactor.set_transactions(TRANSACTIONS);
-	 
+
 	 transactor.display_settings;
 	 transactor.run();
 	 transactor.display_stats;
+
+	 for(idx=0;idx<NUM_SLAVES;idx=idx+1) begin
+	    $display("%0d writes to slave %0d", slave_writes[idx], idx);
+	 end
       end
    endtask
-	 
+
    always #5 wb_clk <= ~wb_clk;
 
    wb_bfm_transactor
@@ -90,18 +110,7 @@ module wb_mux_tb;
       .wb_err_i (wb_s2m_err),
       .wb_rty_i (wb_s2m_rty),
       //Test Control
-      .done(done));
-   
-   integer 	 idx;
-   
-   always @(done) begin
-      if(done === 1'b1) begin
-	 for(idx=0;idx<NUM_SLAVES;idx=idx+1) begin
-	    $display("%0d writes to slave %0d", slave_writes[idx], idx);
-	 end
-	 $display("All tests passed!");
-      end
-   end
+      .done());
 
    wb_mux
      #(.num_slaves(NUM_SLAVES),
@@ -127,7 +136,7 @@ module wb_mux_tb;
     // Wishbone Slave interface
     .wbs_adr_o (wbs_m2s_adr),
     .wbs_dat_o (wbs_m2s_dat),
-    .wbs_sel_o (wbs_m2s_sel), 
+    .wbs_sel_o (wbs_m2s_sel),
     .wbs_we_o  (wbs_m2s_we),
     .wbs_cyc_o (wbs_m2s_cyc),
     .wbs_stb_o (wbs_m2s_stb),
@@ -137,12 +146,12 @@ module wb_mux_tb;
     .wbs_ack_i (wbs_s2m_ack),
     .wbs_err_i (wbs_s2m_err),
     .wbs_rty_i (wbs_s2m_rty));
-   
+
    generate
       for(i=0;i<NUM_SLAVES;i=i+1) begin : slaves
 	 assign slave_writes[i] = wb_mem_model0.writes;
 	 assign slave_reads[i]  = wb_mem_model0.reads;
-	 
+
 	 wb_bfm_memory #(.DEBUG (0),
 			 .mem_size_bytes(SEGMENT_SIZE))
 	 wb_mem_model0
@@ -162,5 +171,5 @@ module wb_mux_tb;
 	     .wb_rty_o (wbs_s2m_rty[i]));
       end // block: slaves
    endgenerate
-   
+
 endmodule // orpsoc_tb
