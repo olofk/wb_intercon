@@ -19,14 +19,15 @@
 
 /*Testbench for wb_cdc
  */
-module wb_cdc_tb;
+`default_nettype none
+module wb_cdc_tb
+  #(parameter AUTORUN = 1);
 
    localparam aw = 32;
    localparam dw = 32;
 
    localparam MEM_SIZE = 256;
 
-   vlog_tb_utils vtu();
 
    reg wbm_clk = 1'b1;
    reg wbm_rst = 1'b1;
@@ -53,15 +54,29 @@ module wb_cdc_tb;
 
    wire 	 done;
 
-   integer 	 TRANSACTIONS;
+   integer  TRANSACTIONS;
 
-   initial run;
+   generate
+      if (AUTORUN) begin
+         vlog_tb_utils vtu();
+         vlog_tap_generator #("wb_cdc.tap", 1) vtg();
+
+         initial begin
+            run;
+            vtg.ok("wb_cdc: All tests passed!");
+            $finish;
+         end
+      end
+   endgenerate
 
    task run;
       begin
+         transactor.bfm.reset;
+	 @(posedge wbs_clk) wbs_rst = 1'b0;
+	 @(posedge wbm_clk) wbm_rst = 1'b0;
+
 	 if($value$plusargs("transactions=%d", TRANSACTIONS))
 	   transactor.set_transactions(TRANSACTIONS);
-
 	 transactor.display_settings;
 	 transactor.run();
 	 transactor.display_stats;
@@ -70,8 +85,6 @@ module wb_cdc_tb;
 
    always #5 wbm_clk <= ~wbm_clk;
    always #3 wbs_clk <= ~wbs_clk;
-   initial #20 wbm_rst = 1'b0;
-   initial #18 wbs_rst = 1'b0;
 
    wb_bfm_transactor
      #(.MEM_HIGH (MEM_SIZE-1),
@@ -79,7 +92,7 @@ module wb_cdc_tb;
        .VERBOSE (0))
    transactor
      (.wb_clk_i (wbm_clk),
-      .wb_rst_i (wbm_rst),
+      .wb_rst_i (1'b0),
       .wb_adr_o (wbm_m2s_adr),
       .wb_dat_o (wbm_m2s_dat),
       .wb_sel_o (wbm_m2s_sel),
@@ -93,14 +106,7 @@ module wb_cdc_tb;
       .wb_err_i (1'b0),
       .wb_rty_i (1'b0),
       //Test Control
-      .done(done));
-
-   always @(done) begin
-      if(done === 1'b1) begin
-	 $display("All tests passed!");
-	 $finish;
-      end
-   end
+      .done());
 
    wb_cdc
      #(.AW(aw))
