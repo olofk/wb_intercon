@@ -10,8 +10,6 @@ module wb_mux_tb
    localparam SEGMENT_SIZE = 32'h100;
    localparam MEMORY_SIZE_BITS  = 8;
 
-   parameter                TRANSACTIONS_PARAM    = 1000;
-
    /*TODO: Find a way to generate MATCH_ADDR and MATCH_MASK based on memory
            size and number of slaves. Missing support for constant
            user functions in Icarus Verilog is the blocker for this*/
@@ -55,7 +53,7 @@ module wb_mux_tb
 
    genvar 	 i;
 
-   integer 		     TRANSACTIONS;
+   integer  TRANSACTIONS;
 
    generate
       if (AUTORUN) begin
@@ -172,4 +170,4 @@ module wb_mux_tb
       end // block: slaves
    endgenerate
 
-endmodule // orpsoc_tb
+endmodule
