@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 from collections import OrderedDict, defaultdict
+import yaml
 
 if sys.version_info[0] >= 3:
     import configparser
@@ -99,6 +100,8 @@ class UnknownPropertyError(Error):
   """An unknown property was encounterned while parsing the config file."""
 
 def parse_number(s):
+    if type(s) == int:
+        return s
     if s.startswith('0x'):
         return int(s, 16)
     else:
@@ -180,30 +183,58 @@ class WbIntercon:
         d = OrderedDict()
         self.slaves = OrderedDict()
         self.masters = OrderedDict()
-        config = configparser.SafeConfigParser()
-        config.read(config_file)
-        for section in config.sections():
-            type=section.split()[0]
-            try:
-                name=section.split()[1]
-            except IndexError:
-                print("Malformed section header. Format is master|slave <name>")
-                exit(1)
-            if type == "master":
-                print("Found master " + name)
-                self.masters[name] = Master(name, dict(config.items(section)))
-                d[name] = config.get(section, 'slaves').split()
-            elif type == "slave":
-                print("Found slave " + name)
-                self.slaves[name] = Slave(name, dict(config.items(section)))
-            else:
-                print("Invalid section type " + type)
-                exit(1)
+        import yaml
+
+        def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
+            class OrderedLoader(Loader):
+                pass
+            def construct_mapping(loader, node):
+                loader.flatten_mapping(node)
+                return object_pairs_hook(loader.construct_pairs(node))
+            OrderedLoader.add_constructor(
+                yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                construct_mapping)
+            return yaml.load(stream, OrderedLoader)
+        data = ordered_load(open(config_file))
+
+        config     = data['parameters']
+        files_root = data['files_root']
+        self.vlnv       = data['vlnv']
+
+        for k,v in config['masters'].items():
+            print("Found master " + k)
+            self.masters[k] = Master(k,v)
+            d[k] = v['slaves']
+        for k,v in config['slaves'].items():
+            print("Found slave " + k)
+            self.slaves[k] = Slave(k,v)
+
+#        config = configparser.SafeConfigParser()
+#        config.read(config_file)
+#        for section in config.sections():
+#            type=section.split()[0]
+#            try:
+#                name=section.split()[1]
+#            except IndexError:
+#                print("Malformed section header. Format is master|slave <name>")
+#                exit(1)
+#            if type == "master":
+#                print("Found master " + name)
+#                self.masters[name] = Master(name, dict(config.items(section)))
+#                d[name] = config.get(section, 'slaves').split()
+#            elif type == "slave":
+#                print("Found slave " + name)
+#                self.slaves[name] = Slave(name, dict(config.items(section)))
+#            else:
+#                print("Invalid section type " + type)
+#                exit(1)
         #Create master/slave connections
         for master, slaves in d.items():
             for slave in slaves:
                 self.masters[master].slaves += [self.slaves[slave]]
                 self.slaves[slave].masters += [self.masters[master]]
+
+        self.output_file = config.get('output_file', 'wb_intercon.v')
 
     def _dump(self):
         print("*Masters*")
@@ -464,7 +495,8 @@ class WbIntercon:
             core, '%s_%s' % (core, thing.name), parameters, converter_ports))
         return template_ports
 
-    def write(self, file):
+    def write(self):
+        file = self.output_file
         #Declare wires. Only conections between muxes and arbiters need explicit wires
         for key, value in self.masters.items():
             for slave in value.slaves:
@@ -511,18 +543,37 @@ class WbIntercon:
 
         self.verilog_writer.write(file)
         self.template_writer.write(file+'h')
+        
+        core_file = self.vlnv.split(':')[2]+'.core'
+        vlnv = self.vlnv
+        with open(core_file, 'w') as f:
+            f.write('CAPI=2:\n')
+            files = [{file     : {'file_type' : 'verilogSource'}},
+                     {file+'h' : {'is_include_file' : True,
+                                  'file_type' : 'verilogSource'}}
+            ]
+            coredata = {'name' : vlnv,
+                        'targets' : {'default' : {}},
+            }
+                        
+            coredata['filesets'] = {'rtl' : {'files' : files}}
+            coredata['targets']['default']['filesets'] = ['rtl']
+                    
+            f.write(yaml.dump(coredata))
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3 or len(sys.argv) > 4:
-        print("wb_intercon_gen <config_file> <out_file> [module_name]")
-        exit(0)
+    #if len(sys.argv) < 3 or len(sys.argv) > 4:
+        #print("wb_intercon_gen <config_file> <out_file> [module_name]")
+        #exit(0)
     name = "wb_intercon"
     if len(sys.argv) == 4:
       name = sys.argv[3]
     try:
       g = WbIntercon(name, sys.argv[1])
+      if len(sys.argv) > 2:
+          g.output_file = sys.argv[2]
       print("="*80)
-      g.write(sys.argv[2])
+      g.write()
     except Error as e:
       print("Error: %s" % e)
       exit(1)

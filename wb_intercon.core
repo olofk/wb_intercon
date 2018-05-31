@@ -28,6 +28,11 @@ filesets:
   constraints:
     files : [data/wb_intercon.sdc: {file_type : SDC}]
 
+generators:
+  wb_intercon_gen:
+    command: sw/wb_intercon_gen
+      
+
 targets:
   default:
     filesets: [rtl, "tool_quartus? (constraints)"]
