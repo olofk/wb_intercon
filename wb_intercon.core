@@ -1,51 +1,50 @@
-CAPI=1
-[main]
-name = ::wb_intercon:1.2.1
-description = Wishbone Bus Interconnect utilities
-depend =
- >=verilog-arbiter-0-r1
- cdc_utils
- wb_common
-simulators = icarus modelsim xsim
+CAPI=2:
 
-[fileset rtl_files]
-files =
- rtl/verilog/wb_cdc.v
- rtl/verilog/wb_arbiter.v
- rtl/verilog/wb_data_resize.v
- rtl/verilog/wb_upsizer.v
- rtl/verilog/wb_mux.v
-file_type = verilogSource
+name : ::wb_intercon:1.2.1
+description : Wishbone Bus Interconnect utilities
 
-[fileset tb]
-files =
- bench/wb_cdc_tb.v
- bench/wb_mux_tb.v
- bench/wb_arbiter_tb.v
- bench/wb_upsizer_tb.v
- bench/wb_intercon_tb.v
-file_type = verilogSource
-scope = private
-usage = sim
+filesets:
+  rtl:
+    files:
+      - rtl/verilog/wb_cdc.v
+      - rtl/verilog/wb_arbiter.v
+      - rtl/verilog/wb_data_resize.v
+      - rtl/verilog/wb_mux.v
+    file_type : verilogSource
+    depend:
+      - ">=verilog-arbiter-0-r1"
+      - cdc_utils
+      - wb_common
 
-[fileset constraints]
-files = data/wb_intercon.sdc[file_type=SDC]
-usage = quartus
+  tb:
+    files:
+      - bench/wb_cdc_tb.v
+      - bench/wb_mux_tb.v
+      - bench/wb_arbiter_tb.v
+      - bench/wb_intercon_tb.v
+    file_type : verilogSource
+    depend: [">=vlog_tb_utils-1.1", ">=wb_bfm-1.1"]
 
-[simulator]
-toplevel = wb_intercon_tb
+  constraints:
+    files : [data/wb_intercon.sdc: {file_type : SDC}]
 
-[parameter transactions]
-datatype    = int
-description = Number of wishbone transactions to run in test bench
-paramtype   = plusarg
-scope       = private
+targets:
+  default:
+    filesets: [rtl, "tool_quartus? (constraints)"]
+    tools:
+      isim:
+        fuse_options: [-d, BROKEN_CLOG2]
 
-[icarus]
-depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
+  sim:
+    filesets: [rtl, tb]
+    parameters: [transactions]
+    tools:
+      isim:
+        fuse_options: [-d, BROKEN_CLOG2]
+    toplevel: wb_intercon_tb
 
-[modelsim]
-depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
-
-[xsim]
-depend = >=vlog_tb_utils-1.1 >=wb_bfm-1.1
+parameters:
+  transactions:
+    datatype    : int
+    description : Number of wishbone transactions to run in test bench
+    paramtype   : plusarg
