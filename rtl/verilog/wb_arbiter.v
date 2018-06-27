@@ -74,8 +74,22 @@ module wb_arbiter
 // Parameters
 ///////////////////////////////////////////////////////////////////////////////
 
+   //ISim does not implement $clog2. Other tools have broken implementations
+`ifdef BROKEN_CLOG2
+   function integer clog2;
+      input integer in;
+      begin
+	 in = in - 1;
+	 for (clog2 = 0; in > 0; clog2=clog2+1)
+	   in = in >> 1;
+      end
+   endfunction
+ `define clog2 clog2
+`else // !`ifdef BROKEN_CLOG2
+   `define clog2 $clog2
+`endif
    //Use parameter instead of localparam to work around a bug in Xilinx ISE
-   parameter master_sel_bits = num_masters > 1 ? $clog2(num_masters) : 1;
+   parameter master_sel_bits = num_masters > 1 ? `clog2(num_masters) : 1;
 
    wire [num_masters-1:0]     grant;
    wire [master_sel_bits-1:0] master_sel;
