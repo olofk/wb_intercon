@@ -104,7 +104,7 @@ module wb_arbiter
       .grant (grant),
       .select (master_sel),
       .active (active));
-
+/* verilator lint_off WIDTH */
    //Mux active master
    assign wbs_adr_o = wbm_adr_i[master_sel*aw+:aw];
    assign wbs_dat_o = wbm_dat_i[master_sel*dw+:dw];
@@ -119,5 +119,6 @@ module wb_arbiter
    assign wbm_ack_o = ((wbs_ack_i & active) << master_sel);
    assign wbm_err_o = ((wbs_err_i & active) << master_sel);
    assign wbm_rty_o = ((wbs_rty_i & active) << master_sel);
+/* verilator lint_on WIDTH */
    
 endmodule // wb_arbiter
