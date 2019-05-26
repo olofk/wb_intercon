@@ -116,7 +116,9 @@ module wb_mux
 	 ff1 = 0;
 	 for (i = num_slaves-1; i >= 0; i=i-1) begin
 	    if (in[i])
+/* verilator lint_off WIDTH */
 	      ff1 = i;
+/* verilator lint_on WIDTH */
 	 end
       end
    endfunction
@@ -130,8 +132,10 @@ module wb_mux
    assign wbs_dat_o = {num_slaves{wbm_dat_i}};
    assign wbs_sel_o = {num_slaves{wbm_sel_i}};
    assign wbs_we_o  = {num_slaves{wbm_we_i}};
+/* verilator lint_off WIDTH */
 
    assign wbs_cyc_o = match & (wbm_cyc_i << slave_sel);
+/* verilator lint_on WIDTH */
    assign wbs_stb_o = {num_slaves{wbm_stb_i}};
 
    assign wbs_cti_o = {num_slaves{wbm_cti_i}};
