@@ -1,6 +1,6 @@
 CAPI=2:
 
-name : ::wb_intercon:1.2.2
+name : ::wb_intercon:1.3.0
 description : Wishbone Bus Interconnect utilities
 
 filesets:

@@ -115,6 +115,16 @@ class WbIntercon:
         files_root = data['files_root']
         self.vlnv       = data['vlnv']
 
+        valid_endians = ['big', 'little']
+        if 'endian' in config:
+            self.endian = config['endian']
+            if self.endian not in valid_endians:
+                raise UnknownPropertyError("Unknown data resizer endian '{}' specified. Valid endians: {}".format(config['endian'], valid_endians))
+        else:
+            self.endian = "big"
+
+        print("Wishbone Data Resizer Endian: {}".format(config['endian']))
+
         for k,v in config['masters'].items():
             print("Found master " + k)
             self.masters[k] = Master(k,v)
@@ -225,6 +235,7 @@ class WbIntercon:
         parameters = [Parameter('aw', 32)]
         parameters += [Parameter('mdw', 32)]
         parameters += [Parameter('sdw', slave.datawidth)]
+        parameters += [Parameter('endian', '"{}"'.format(self.endian))]
         s = slave.name
 
         ports =[]
