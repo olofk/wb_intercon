@@ -20,7 +20,7 @@ module wb_data_resize
   #(parameter aw  = 32, //Address width
     parameter mdw = 32, //Master Data Width
     parameter sdw = 8, //Slave Data Width
-    parameter endian = "big") // Endian for byte reads/writes
+    parameter [47:0] endian = "big") // Endian for byte reads/writes
    (//Wishbone Master interface
     input   [aw-1:0]    wbm_adr_i,
     input   [mdw-1:0]   wbm_dat_i,

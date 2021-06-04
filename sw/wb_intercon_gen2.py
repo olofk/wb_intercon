@@ -123,7 +123,7 @@ class WbIntercon:
         else:
             self.endian = "big"
 
-        print("Wishbone Data Resizer Endian: {}".format(config['endian']))
+        print("Wishbone Data Resizer Endian: {}".format(self.endian))
 
         for k,v in config['masters'].items():
             print("Found master " + k)
