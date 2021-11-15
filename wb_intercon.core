@@ -30,7 +30,7 @@ filesets:
 
 generators:
   wb_intercon_gen:
-    interpreter: python
+    interpreter: python3
     command: sw/wb_intercon_gen2.py
     description : Create a wishbone crossbar interconnect from a memory map
     usage: |

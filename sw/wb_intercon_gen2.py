@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 from collections import OrderedDict, defaultdict
 import yaml
@@ -14,12 +14,12 @@ WB_MASTER_PORTS = [Signal('adr', 32),
                    Signal('cti',  3),
                    Signal('bte',  2)]
 
-WB_SLAVE_PORTS  = [Signal('dat', 32),
+WB_SLAVE_PORTS  = [Signal('rdt', 32),
                    Signal('ack'),
                    Signal('err'),
                    Signal('rty')]
 
-WB_DATA_WIDTH = defaultdict(float, { 'dat': 1.0 })
+WB_DATA_WIDTH = defaultdict(float, { 'dat': 1.0, 'rdt': 1.0 })
 
 class Error(Exception):
   """Base error for wb_intercon_gen"""
@@ -173,7 +173,8 @@ class WbIntercon:
         for p in WB_MASTER_PORTS:
             ports += [Port('wbm_' + p.name + '_i', input_format % (m, p.name))]
         for p in WB_SLAVE_PORTS:
-            ports += [Port('wbm_' + p.name + '_o', output_format % (m, p.name))]
+            _name = 'dat' if p.name == 'rdt' else p.name
+            ports += [Port('wbm_' + _name + '_o', output_format % (m, p.name))]
 
         #Create mux slave side connections
         name_list = []
@@ -186,16 +187,17 @@ class WbIntercon:
                 name_list += ['wb_' + s.name + '_{0}_{1}']
             #If not, we'll need a wb_data_resize and then new wires.
             elif len(s.masters) == 1 and int(s.datawidth) < 32:
-                 name_list += ['wb_{dir}' + 'resize_' + s.name + '_{0}']
+                 name_list += ['wb_' + 'resize_' + s.name + '_{0}']
             #If there is more than on master for that slave, there will
             #be an arbiter and the wb_data_resize will be after that.
             else:
-                name_list += ['wb_{dir}'+ m + '_' + s.name + '_{0}']
+                name_list += ['wb_'+ m + '_' + s.name + '_{0}']
 
         for p in WB_MASTER_PORTS:
-            ports += [Port('wbs_'+p.name+'_o', '{' + ', '.join(name_list).format(p.name, 'o', dir='m2s_')+'}')]
+            ports += [Port('wbs_'+p.name+'_o', '{' + ', '.join(name_list).format(p.name, 'o')+'}')]
         for p in WB_SLAVE_PORTS:
-            ports += [Port('wbs_'+p.name+'_i', '{' + ', '.join(name_list).format(p.name, 'i', dir='s2m_')+'}')]
+            _name = 'dat' if p.name == 'rdt' else p.name
+            ports += [Port('wbs_'+_name+'_i', '{' + ', '.join(name_list).format(p.name, 'i')+'}')]
 
         self.verilog_writer.add(Instance('wb_mux', 'wb_mux_'+m,parameters, ports))
 
@@ -207,11 +209,12 @@ class WbIntercon:
 
         name_list = []
         for m in slave.masters:
-            name_list += ['wb_{dir}'+ m.name + '_' + s + '_{0}']
+            name_list += ['wb_'+ m.name + '_' + s + '_{0}']
         for p in WB_MASTER_PORTS:
-            ports += [Port('wbm_'+p.name+'_i', '{' + ', '.join(name_list).format(p.name, 'i', dir='m2s_')+'}')]
+            ports += [Port('wbm_'+p.name+'_i', '{' + ', '.join(name_list).format(p.name, 'i')+'}')]
         for p in WB_SLAVE_PORTS:
-            ports += [Port('wbm_'+p.name+'_o', '{' + ', '.join(name_list).format(p.name, 'o', dir='s2m_')+'}')]
+            _name = 'dat' if p.name == 'rdt' else p.name
+            ports += [Port('wbm_'+_name+'_o', '{' + ', '.join(name_list).format(p.name, 'o')+'}')]
 
         #Create slave connections
         #If the slave's data width is 32, we don't need a wb_data_resize
@@ -221,13 +224,15 @@ class WbIntercon:
             for p in WB_MASTER_PORTS:
                 ports += [Port('wbs_' + p.name + '_o', output_format % (s, p.name))]
             for p in WB_SLAVE_PORTS:
-                ports += [Port('wbs_' + p.name + '_i', input_format % (s, p.name))]
+                _name = 'dat' if p.name == 'rdt' else p.name
+                ports += [Port('wbs_' + _name + '_i', input_format % (s, p.name))]
         #Else, connect to the resizer
         else:
             for p in WB_MASTER_PORTS:
-                ports += [Port('wbs_' + p.name + '_o', 'wb_m2s_resize_'+s+'_'+p.name)]
+                ports += [Port('wbs_' + p.name + '_o', 'wb_resize_'+s+'_'+p.name)]
             for p in WB_SLAVE_PORTS:
-                ports += [Port('wbs_' + p.name + '_i', 'wb_s2m_resize_'+s+'_'+p.name)]
+                _name = 'dat' if p.name == 'rdt' else p.name
+                ports += [Port('wbs_' + _name + '_i', 'wb_resize_'+s+'_'+p.name)]
 
         self.verilog_writer.add(Instance('wb_arbiter', 'wb_arbiter_'+s,parameters, ports))
 
@@ -241,9 +246,10 @@ class WbIntercon:
         ports =[]
         #Create master connections
         for p in WB_MASTER_PORTS:
-            ports += [Port('wbm_'+p.name+'_i', 'wb_m2s_resize_'+s+'_'+p.name)]
+            ports += [Port('wbm_'+p.name+'_i', 'wb_resize_'+s+'_'+p.name)]
         for p in WB_SLAVE_PORTS:
-            ports += [Port('wbm_'+p.name+'_o', 'wb_s2m_resize_'+s+'_'+p.name)]
+            _name = 'dat' if p.name == 'rdt' else p.name
+            ports += [Port('wbm_'+_name+'_o', 'wb_resize_'+s+'_'+p.name)]
 
         input_format = 'wb_%s_%s_i'
         output_format = 'wb_%s_%s_o'
@@ -253,28 +259,29 @@ class WbIntercon:
             if p.name != "sel":
                 ports.append(Port('wbs_' + p.name + '_o', output_format % (s, p.name)))
         for p in WB_SLAVE_PORTS:
-            ports.append(Port('wbs_' + p.name + '_i', input_format % (s, p.name)))
+            _name = 'dat' if p.name == 'rdt' else p.name
+            ports.append(Port('wbs_' + _name + '_i', input_format % (s, p.name)))
 
         self.verilog_writer.add(Instance('wb_data_resize', 'wb_data_resize_'+s,parameters, ports))
 
         for p in WB_MASTER_PORTS:
-            wirename = 'wb_m2s_resize_{slave}_{port}'.format(slave=s, port=p.name)
+            wirename = 'wb_resize_{slave}_{port}'.format(slave=s, port=p.name)
             self.verilog_writer.add(Wire(wirename, p.width))
         for p in WB_SLAVE_PORTS:
-            wirename = 'wb_s2m_resize_{slave}_{port}'.format(slave=s, port=p.name)
+            wirename = 'wb_resize_{slave}_{port}'.format(slave=s, port=p.name)
             self.verilog_writer.add(Wire(wirename, p.width))
 
     def _gen_wishbone_master_port(self, master):
         template_ports = []
         for p in WB_MASTER_PORTS:
             portname = 'wb_{master}_{port}_i'.format(master=master.name, port=p.name)
-            wirename = 'wb_m2s_{master}_{port}'.format(master=master.name, port=p.name)
+            wirename = 'wb_{master}_{port}'.format(master=master.name, port=p.name)
             self.verilog_writer.add(ModulePort(portname, 'input', p.width))
             self.template_writer.add(Wire(wirename, p.width))
             template_ports += [Port(portname, wirename)]
         for p in WB_SLAVE_PORTS:
             portname = 'wb_{master}_{port}_o'.format(master=master.name, port=p.name)
-            wirename = 'wb_s2m_{master}_{port}'.format(master=master.name, port=p.name)
+            wirename = 'wb_{master}_{port}'.format(master=master.name, port=p.name)
             self.verilog_writer.add(ModulePort(portname, 'output', p.width))
             self.template_writer.add(Wire(wirename, p.width))
             template_ports += [Port(portname, wirename)]
@@ -284,14 +291,14 @@ class WbIntercon:
         template_ports = []
         for p in WB_MASTER_PORTS:
             portname = 'wb_{slave}_{port}_o'.format(slave=slave.name, port=p.name)
-            wirename = 'wb_m2s_{slave}_{port}'.format(slave=slave.name, port=p.name)
+            wirename = 'wb_{slave}_{port}'.format(slave=slave.name, port=p.name)
             dw = int(WB_DATA_WIDTH[p.name] * slave.datawidth) or p.width
             self.verilog_writer.add(ModulePort(portname, 'output', dw))
             self.template_writer.add(Wire(wirename, dw))
             template_ports += [Port(portname, wirename)]
         for p in WB_SLAVE_PORTS:
             portname = 'wb_{slave}_{port}_i'.format(slave=slave.name, port=p.name)
-            wirename = 'wb_s2m_{slave}_{port}'.format(slave=slave.name, port=p.name)
+            wirename = 'wb_{slave}_{port}'.format(slave=slave.name, port=p.name)
             dw = int(WB_DATA_WIDTH[p.name] * slave.datawidth) or p.width
             self.verilog_writer.add(ModulePort(portname, 'input', dw))
             self.template_writer.add(Wire(wirename, dw))
@@ -351,9 +358,9 @@ class WbIntercon:
             for slave in value.slaves:
                 if len(slave.masters)>1:
                     for p in WB_MASTER_PORTS:
-                        self.verilog_writer.add(Wire('wb_m2s_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
+                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
                     for p in WB_SLAVE_PORTS:
-                        self.verilog_writer.add(Wire('wb_s2m_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
+                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
 
         self.verilog_writer.add(ModulePort('wb_clk_i', 'input'))
         self.verilog_writer.add(ModulePort('wb_rst_i', 'input'))
