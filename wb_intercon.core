@@ -72,6 +72,7 @@ targets:
 
   sim:
     default_tool : icarus
+    description : wb_intercon regression tests
     filesets: [rtl, tb]
     parameters: [transactions]
     tools:
