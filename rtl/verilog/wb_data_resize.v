@@ -22,30 +22,30 @@ module wb_data_resize
     parameter sdw = 8, //Slave Data Width
     parameter [47:0] endian = "big") // Endian for byte reads/writes
    (//Wishbone Master interface
-    input   [aw-1:0]    wbm_adr_i,
-    input   [mdw-1:0]   wbm_dat_i,
-    input   [3:0]       wbm_sel_i,
-    input               wbm_we_i,
-    input               wbm_cyc_i,
-    input               wbm_stb_i,
-    input   [2:0]       wbm_cti_i,
-    input   [1:0]       wbm_bte_i,
-    output  [mdw-1:0]   wbm_dat_o,
-    output              wbm_ack_o,
-    output              wbm_err_o,
-    output              wbm_rty_o,
+    input wire [aw-1:0]	  wbm_adr_i,
+    input wire [mdw-1:0]  wbm_dat_i,
+    input wire [3:0]	  wbm_sel_i,
+    input wire		  wbm_we_i,
+    input wire		  wbm_cyc_i,
+    input wire		  wbm_stb_i,
+    input wire [2:0]	  wbm_cti_i,
+    input wire [1:0]	  wbm_bte_i,
+    output wire [mdw-1:0] wbm_dat_o,
+    output wire		  wbm_ack_o,
+    output wire		  wbm_err_o,
+    output wire		  wbm_rty_o,
     // Wishbone Slave interface
-    output  [aw-1:0]    wbs_adr_o,
-    output  [sdw-1:0]   wbs_dat_o,
-    output              wbs_we_o,
-    output              wbs_cyc_o,
-    output              wbs_stb_o,
-    output  [2:0]       wbs_cti_o,
-    output  [1:0]       wbs_bte_o,
-    input   [sdw-1:0]   wbs_dat_i,
-    input               wbs_ack_i,
-    input               wbs_err_i,
-    input               wbs_rty_i);
+    output wire [aw-1:0]  wbs_adr_o,
+    output wire [sdw-1:0] wbs_dat_o,
+    output wire		  wbs_we_o,
+    output wire		  wbs_cyc_o,
+    output wire		  wbs_stb_o,
+    output wire [2:0]	  wbs_cti_o,
+    output wire [1:0]	  wbs_bte_o,
+    input wire [sdw-1:0]  wbs_dat_i,
+    input wire		  wbs_ack_i,
+    input wire		  wbs_err_i,
+    input wire		  wbs_rty_i);
 
    assign wbs_adr_o[aw-1:2] = wbm_adr_i[aw-1:2];
 

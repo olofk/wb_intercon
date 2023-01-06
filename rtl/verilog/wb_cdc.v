@@ -25,26 +25,26 @@
 
 module wb_cdc
   #(parameter AW = 32)
-  (input 	   wbm_clk,
-   input 	   wbm_rst,
-   input [AW-1:0]  wbm_adr_i,
-   input [31:0]    wbm_dat_i,
-   input [3:0] 	   wbm_sel_i,
-   input 	   wbm_we_i,
-   input 	   wbm_cyc_i,
-   input 	   wbm_stb_i,
-   output [31:0]   wbm_dat_o,
-   output 	   wbm_ack_o,
-   input 	   wbs_clk,
-   input 	   wbs_rst,
-   output [AW-1:0] wbs_adr_o,
-   output [31:0]   wbs_dat_o,
-   output [3:0]    wbs_sel_o,
-   output 	   wbs_we_o,
-   output 	   wbs_cyc_o,
-   output 	   wbs_stb_o,
-   input [31:0]    wbs_dat_i,
-   input 	   wbs_ack_i);
+  (input wire		wbm_clk,
+   input wire		wbm_rst,
+   input wire [AW-1:0]	wbm_adr_i,
+   input wire [31:0]	wbm_dat_i,
+   input wire [3:0]	wbm_sel_i,
+   input wire		wbm_we_i,
+   input wire		wbm_cyc_i,
+   input wire		wbm_stb_i,
+   output wire [31:0]	wbm_dat_o,
+   output wire		wbm_ack_o,
+   input wire		wbs_clk,
+   input wire		wbs_rst,
+   output wire [AW-1:0]	wbs_adr_o,
+   output wire [31:0]	wbs_dat_o,
+   output wire [3:0]	wbs_sel_o,
+   output wire		wbs_we_o,
+   output wire		wbs_cyc_o,
+   output wire		wbs_stb_o,
+   input wire [31:0]	wbs_dat_i,
+   input wire		wbs_ack_i);
 
    wire 	   wbm_m2s_en;
    reg 		   wbm_busy = 1'b0;

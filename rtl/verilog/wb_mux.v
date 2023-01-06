@@ -46,35 +46,36 @@ module wb_mux
     parameter [num_slaves*aw-1:0] MATCH_ADDR = 0,
     parameter [num_slaves*aw-1:0] MATCH_MASK = 0)
 
-   (input                      wb_clk_i,
-    input 		       wb_rst_i,
+   (
+    input wire			    wb_clk_i,
+    input wire			    wb_rst_i,
 
     // Master Interface
-    input [aw-1:0] 	       wbm_adr_i,
-    input [dw-1:0] 	       wbm_dat_i,
-    input [3:0] 	       wbm_sel_i,
-    input 		       wbm_we_i,
-    input 		       wbm_cyc_i,
-    input 		       wbm_stb_i,
-    input [2:0] 	       wbm_cti_i,
-    input [1:0] 	       wbm_bte_i,
-    output [dw-1:0] 	       wbm_dat_o,
-    output 		       wbm_ack_o,
-    output 		       wbm_err_o,
-    output 		       wbm_rty_o,
+    input wire [aw-1:0]		    wbm_adr_i,
+    input wire [dw-1:0]		    wbm_dat_i,
+    input wire [3:0]		    wbm_sel_i,
+    input wire			    wbm_we_i,
+    input wire			    wbm_cyc_i,
+    input wire			    wbm_stb_i,
+    input wire [2:0]		    wbm_cti_i,
+    input wire [1:0]		    wbm_bte_i,
+    output wire [dw-1:0]	    wbm_dat_o,
+    output wire			    wbm_ack_o,
+    output wire			    wbm_err_o,
+    output wire			    wbm_rty_o,
     // Wishbone Slave interface
-    output [num_slaves*aw-1:0] wbs_adr_o,
-    output [num_slaves*dw-1:0] wbs_dat_o,
-    output [num_slaves*4-1:0]  wbs_sel_o,
-    output [num_slaves-1:0]    wbs_we_o,
-    output [num_slaves-1:0]    wbs_cyc_o,
-    output [num_slaves-1:0]    wbs_stb_o,
-    output [num_slaves*3-1:0]  wbs_cti_o,
-    output [num_slaves*2-1:0]  wbs_bte_o,
-    input [num_slaves*dw-1:0]  wbs_dat_i,
-    input [num_slaves-1:0]     wbs_ack_i,
-    input [num_slaves-1:0]     wbs_err_i,
-    input [num_slaves-1:0]     wbs_rty_i);
+    output wire [num_slaves*aw-1:0] wbs_adr_o,
+    output wire [num_slaves*dw-1:0] wbs_dat_o,
+    output wire [num_slaves*4-1:0]  wbs_sel_o,
+    output wire [num_slaves-1:0]    wbs_we_o,
+    output wire [num_slaves-1:0]    wbs_cyc_o,
+    output wire [num_slaves-1:0]    wbs_stb_o,
+    output wire [num_slaves*3-1:0]  wbs_cti_o,
+    output wire [num_slaves*2-1:0]  wbs_bte_o,
+    input wire [num_slaves*dw-1:0]  wbs_dat_i,
+    input wire [num_slaves-1:0]	    wbs_ack_i,
+    input wire [num_slaves-1:0]	    wbs_err_i,
+    input wire [num_slaves-1:0]	    wbs_rty_i);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Master/slave connection

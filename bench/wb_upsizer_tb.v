@@ -17,17 +17,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 module wb_upsizer_tb
-  (input wb_clk_i,
-   input wb_rst_i,
-   output done);
+  (input wire  wb_clk_i,
+   input wire  wb_rst_i,
+   output wire done);
 
    localparam aw = 32;
    localparam MEMORY_SIZE_WORDS = 2**10;
-   
+
    localparam DW_IN = 32;
    localparam SCALE = 2;
    localparam DW_OUT = DW_IN * SCALE;
-   
+
    wire [aw-1:0] wbm_m2s_adr;
    wire [DW_IN-1:0] wbm_m2s_dat;
    wire [DW_IN/8-1:0] wbm_m2s_sel;
@@ -78,7 +78,7 @@ module wb_upsizer_tb
       .wb_rty_i (wbm_s2m_rty),
       //Test Control
       .done(done));
-   
+
    integer 	 idx;
 
    always @(done) begin
@@ -121,7 +121,7 @@ module wb_upsizer_tb
       .wbm_ack_i (wbs_s2m_ack),
       .wbm_err_i (wbs_s2m_err),
       .wbm_rty_i (wbs_s2m_rty));
-   
+
    assign slave_writes = mem.writes;
    assign slave_reads  = mem.reads;
 
@@ -140,7 +140,7 @@ module wb_upsizer_tb
 	 num_transactions = num_transactions+1;
       end
    end
-      
+
    wb_bfm_memory #(.DEBUG (0),
 		   .dw (DW_OUT),
 		   .mem_size_bytes(MEMORY_SIZE_WORDS*(DW_IN/8)))

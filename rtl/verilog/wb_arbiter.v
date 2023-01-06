@@ -27,36 +27,36 @@ module wb_arbiter
    parameter aw = 32,
    parameter num_masters = 0)
   (
-   input 		       wb_clk_i,
-   input 		       wb_rst_i,
+   input wire			    wb_clk_i,
+   input wire			    wb_rst_i,
 
    // Wishbone Master Interface
-   input [num_masters*aw-1:0]  wbm_adr_i,
-   input [num_masters*dw-1:0]  wbm_dat_i,
-   input [num_masters*4-1:0]   wbm_sel_i,
-   input [num_masters-1:0]     wbm_we_i,
-   input [num_masters-1:0]     wbm_cyc_i,
-   input [num_masters-1:0]     wbm_stb_i,
-   input [num_masters*3-1:0]   wbm_cti_i,
-   input [num_masters*2-1:0]   wbm_bte_i,
-   output [num_masters*dw-1:0] wbm_dat_o,
-   output [num_masters-1:0]    wbm_ack_o,
-   output [num_masters-1:0]    wbm_err_o,
-   output [num_masters-1:0]    wbm_rty_o, 
+   input wire [num_masters*aw-1:0]  wbm_adr_i,
+   input wire [num_masters*dw-1:0]  wbm_dat_i,
+   input wire [num_masters*4-1:0]   wbm_sel_i,
+   input wire [num_masters-1:0]	    wbm_we_i,
+   input wire [num_masters-1:0]	    wbm_cyc_i,
+   input wire [num_masters-1:0]	    wbm_stb_i,
+   input wire [num_masters*3-1:0]   wbm_cti_i,
+   input wire [num_masters*2-1:0]   wbm_bte_i,
+   output wire [num_masters*dw-1:0] wbm_dat_o,
+   output wire [num_masters-1:0]    wbm_ack_o,
+   output wire [num_masters-1:0]    wbm_err_o,
+   output wire [num_masters-1:0]    wbm_rty_o,
 
    // Wishbone Slave interface
-   output [aw-1:0] 	       wbs_adr_o,
-   output [dw-1:0] 	       wbs_dat_o,
-   output [3:0] 	       wbs_sel_o, 
-   output 		       wbs_we_o,
-   output 		       wbs_cyc_o,
-   output 		       wbs_stb_o,
-   output [2:0] 	       wbs_cti_o,
-   output [1:0] 	       wbs_bte_o,
-   input [dw-1:0] 	       wbs_dat_i,
-   input 		       wbs_ack_i,
-   input 		       wbs_err_i,
-   input 		       wbs_rty_i);
+   output wire [aw-1:0]		    wbs_adr_o,
+   output wire [dw-1:0]		    wbs_dat_o,
+   output wire [3:0]		    wbs_sel_o,
+   output wire			    wbs_we_o,
+   output wire			    wbs_cyc_o,
+   output wire			    wbs_stb_o,
+   output wire [2:0]		    wbs_cti_o,
+   output wire [1:0]		    wbs_bte_o,
+   input wire [dw-1:0]		    wbs_dat_i,
+   input wire			    wbs_ack_i,
+   input wire			    wbs_err_i,
+   input wire			    wbs_rty_i);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,5 +109,5 @@ module wb_arbiter
    assign wbm_err_o = ((wbs_err_i & active) << master_sel);
    assign wbm_rty_o = ((wbs_rty_i & active) << master_sel);
 /* verilator lint_on WIDTH */
-   
+
 endmodule // wb_arbiter
