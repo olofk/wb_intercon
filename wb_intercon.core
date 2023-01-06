@@ -71,6 +71,7 @@ targets:
         fuse_options: [-d, BROKEN_CLOG2]
 
   sim:
+    default_tool : icarus
     filesets: [rtl, tb]
     parameters: [transactions]
     tools:
