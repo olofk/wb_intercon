@@ -42,7 +42,8 @@
 module wb_mux
   #(parameter dw = 32,        // Data width
     parameter aw = 32,        // Address width
-    parameter num_slaves = 2, // Number of slaves
+    parameter num_devices = 2, // Number of devices
+    parameter num_slaves = num_devices, // Number of devices (deprecated)
     parameter [num_slaves*aw-1:0] MATCH_ADDR = 0,
     parameter [num_slaves*aw-1:0] MATCH_MASK = 0)
 

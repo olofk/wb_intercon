@@ -1,6 +1,6 @@
 CAPI=2:
 
-name : ::wb_intercon:1.4.0
+name : ::wb_intercon:1.4.1
 description : Wishbone Bus Interconnect utilities
 
 filesets:
@@ -35,24 +35,24 @@ generators:
     description : Create a wishbone crossbar interconnect from a memory map
     usage: |
       The Wishbone interconnect generator generates a verilog core from a
-      description of master and connected slave ports.
+      description of host and connected device ports.
 
       Parameters:
-        masters (dict): A named list of master ports. Each master has a list of
-                        connected slave ports
+        hosts (dict): A named list of host ports. Each host has a list of
+                        connected device ports
 
                         Example
 
-                        masters:
+                        hosts:
                           cpu_ibus:
-                            slaves: [mem, bootrom]
+                            devices: [mem, bootrom]
                           cpu_dbus: [mem, uart, spi1, spi2]
-        slaves (dict): A named list of slave ports. Each slave defines the
+        devices (dict): A named list of device ports. Each device defines the
                        and space they occupy in the memory map
 
                        Example
 
-                       slaves:
+                       devices:
                          bootrom:
                            offset : 0xf0000000
                            size   : 512

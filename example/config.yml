@@ -1,0 +1,26 @@
+vlnv: optional_vendor_name:an_optional_library_name:example_intercon:0
+parameters:
+  endian: little
+  hosts:
+    io:
+      devices : [rom, sys, spi_flash, uart]
+    cpu:
+      devices: [rom, ram]
+        
+  devices:
+    rom:
+      offset : 0x00000000
+      size   : 0x00001000
+    sys:
+      offset : 0x00001000
+      size   : 0x00000040
+    spi_flash:
+      offset : 0x00001040
+      size   : 0x00000040
+      datawidth : 8
+    uart:
+      offset : 0x00002000
+      size   : 0x00001000
+    ram:
+      offset: 0x001000000
+      size  : 0x001000000

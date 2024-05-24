@@ -5,7 +5,7 @@ import yaml
 
 from verilogwriter import Signal, Wire, Instance, ModulePort, VerilogWriter
 
-WB_MASTER_PORTS = [Signal('adr', 32),
+WB_HOST_PORTS = [Signal('adr', 32),
                    Signal('dat', 32),
                    Signal('sel',  4),
                    Signal('we'),
@@ -14,7 +14,7 @@ WB_MASTER_PORTS = [Signal('adr', 32),
                    Signal('cti',  3),
                    Signal('bte',  2)]
 
-WB_SLAVE_PORTS  = [Signal('rdt', 32),
+WB_DEVICE_PORTS  = [Signal('rdt', 32),
                    Signal('ack'),
                    Signal('err'),
                    Signal('rty')]
@@ -35,28 +35,28 @@ def parse_number(s):
     else:
         return int(s)
 
-class Master:
+class Host:
     def __init__(self, name, d=None):
         self.name = name
         self.datawidth = 32
-        self.slaves = []
+        self.devices = []
         if d:
             self.load_dict(d)
 
     def load_dict(self, d):
         for key, value in d.items():
-            if key == 'slaves':
+            if key in ['slaves', 'devices']:
                 # Handled in file loading, ignore here
                 continue
             else:
                 raise UnknownPropertyError(
-                    "Unknown property '%s' in master section '%s'" % (
+                    "Unknown property '%s' in host section '%s'" % (
                     key, self.name))
 
-class Slave:
+class Device:
     def __init__(self, name, d=None):
         self.name = name
-        self.masters = []
+        self.hosts = []
         self.datawidth = 32
         self.offset = 0
         self.size = 0
@@ -75,7 +75,7 @@ class Slave:
                 self.mask = ~(self.size-1) & 0xffffffff
             else:
                 raise UnknownPropertyError(
-                    "Unknown property '%s' in slave section '%s'" % (
+                    "Unknown property '%s' in device section '%s'" % (
                     key, self.name))
 
 class Parameter:
@@ -95,8 +95,8 @@ class WbIntercon:
         self.template_writer = VerilogWriter(name);
         self.name = name
         d = OrderedDict()
-        self.slaves = OrderedDict()
-        self.masters = OrderedDict()
+        self.devices = OrderedDict()
+        self.hosts = OrderedDict()
         import yaml
 
         def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -124,202 +124,220 @@ class WbIntercon:
 
         print("Wishbone Data Resizer Endian: {}".format(self.endian))
 
-        for k,v in config['masters'].items():
-            print("Found master " + k)
-            self.masters[k] = Master(k,v)
-            d[k] = v['slaves']
-        for k,v in config['slaves'].items():
-            print("Found slave " + k)
-            self.slaves[k] = Slave(k,v)
+        hosts = config.get('masters', {})
+        hosts.update(config.get('hosts', {}))
+        for k, v in hosts.items():
+          if not v.get('devices'):
+            v['devices'] = []
+          v['devices'] += v.get('slaves', [])
+        devices = config.get('slaves', {})
+        devices.update(config.get('devices', {}))
+        if not hosts:
+          print("Error: No host ports found in config")
+          exit(1)
+        if not devices:
+          print("Error: No device ports found in config")
+          exit(1)
+        for k,v in hosts.items():
+            print("Found host port " + k)
+            self.hosts[k] = Host(k,v)
+            d[k] = v['devices']
+        for k,v in devices.items():
+            print("Found device port " + k)
+            self.devices[k] = Device(k,v)
 
-        #Create master/slave connections
-        for master, slaves in d.items():
-            for slave in slaves:
-                self.masters[master].slaves += [self.slaves[slave]]
-                self.slaves[slave].masters += [self.masters[master]]
+        #Create host/device connections
+        for host, devices in d.items():
+            for device in devices:
+              try:
+                self.hosts[host].devices += [self.devices[device]]
+              except KeyError:
+                print(f"Error: Could not find device instance {device}")
+                exit(1)
+              self.devices[device].hosts += [self.hosts[host]]
 
         self.output_file = config.get('output_file', 'wb_intercon.v')
 
     def _dump(self):
-        print("*Masters*")
-        for master in self.masters.values():
-            print(master.name)
-            for slave in master.slaves:
-                print(' ' + slave.name)
+        print("*Hosts*")
+        for host in self.hosts.values():
+            print(host.name)
+            for device in host.devices:
+                print(' ' + device.name)
 
-        print("*Slaves*")
-        for slave in self.slaves.values():
-            print(slave.name)
-            for master in slave.masters:
-                print(' ' + master.name)
+        print("*Devices*")
+        for device in self.devices.values():
+            print(device.name)
+            for host in device.hosts:
+                print(' ' + host.name)
 
 
-    def _gen_mux(self, master):
-        parameters = [Parameter('num_slaves', len(master.slaves))]
-        match_addr = '{' + ', '.join(["32'h{addr:08x}".format(addr=s.offset) for s in master.slaves]) + '}'
+    def _gen_mux(self, host):
+        parameters = [Parameter('num_devices', len(host.devices))]
+        match_addr = '{' + ', '.join(["32'h{addr:08x}".format(addr=s.offset) for s in host.devices]) + '}'
         parameters += [Parameter('MATCH_ADDR', match_addr)]
 
-        match_mask = '{' + ', '.join(["32'h{mask:08x}".format(mask=s.mask) for s in master.slaves]) + '}'
+        match_mask = '{' + ', '.join(["32'h{mask:08x}".format(mask=s.mask) for s in host.devices]) + '}'
         parameters += [Parameter('MATCH_MASK', match_mask)]
         ports = [Port('wb_clk_i', 'wb_clk_i'),
                  Port('wb_rst_i', 'wb_rst_i')]
-        m = master.name
+        m = host.name
 
         input_format = 'wb_%s_%s_i'
         output_format = 'wb_%s_%s_o'
 
-        #Create mux master side connections
-        for p in WB_MASTER_PORTS:
+        #Create mux host side connections
+        for p in WB_HOST_PORTS:
             ports += [Port('wbm_' + p.name + '_i', input_format % (m, p.name))]
-        for p in WB_SLAVE_PORTS:
+        for p in WB_DEVICE_PORTS:
             _name = 'dat' if p.name == 'rdt' else p.name
             ports += [Port('wbm_' + _name + '_o', output_format % (m, p.name))]
 
-        #Create mux slave side connections
+        #Create mux device side connections
         name_list = []
-        for s in master.slaves:
+        for s in host.devices:
 
-            #If we have only one master the wb_mux is the last piece before
-            #the slave. If the slave's datawidth is 32, we go straight from
-            #the wb_mux to the slave.
-            if len(s.masters) == 1 and int(s.datawidth) == 32:
+            #If we have only one host the wb_mux is the last piece before
+            #the device. If the device's datawidth is 32, we go straight from
+            #the wb_mux to the device.
+            if len(s.hosts) == 1 and int(s.datawidth) == 32:
                 name_list += ['wb_' + s.name + '_{0}_{1}']
             #If not, we'll need a wb_data_resize and then new wires.
-            elif len(s.masters) == 1 and int(s.datawidth) < 32:
+            elif len(s.hosts) == 1 and int(s.datawidth) < 32:
                  name_list += ['wb_' + 'resize_' + s.name + '_{0}']
-            #If there is more than on master for that slave, there will
+            #If there is more than on host for that device, there will
             #be an arbiter and the wb_data_resize will be after that.
             else:
                 name_list += ['wb_'+ m + '_' + s.name + '_{0}']
 
-        for p in WB_MASTER_PORTS:
+        for p in WB_HOST_PORTS:
             ports += [Port('wbs_'+p.name+'_o', '{' + ', '.join(name_list).format(p.name, 'o')+'}')]
-        for p in WB_SLAVE_PORTS:
+        for p in WB_DEVICE_PORTS:
             _name = 'dat' if p.name == 'rdt' else p.name
             ports += [Port('wbs_'+_name+'_i', '{' + ', '.join(name_list).format(p.name, 'i')+'}')]
 
         self.verilog_writer.add(Instance('wb_mux', 'wb_mux_'+m,parameters, ports))
 
-    def _gen_arbiter(self, slave):
-        parameters = [Parameter('num_masters', len(slave.masters))]
+    def _gen_arbiter(self, device):
+        parameters = [Parameter('num_hosts', len(device.hosts))]
         ports = [Port('wb_clk_i', 'wb_clk_i'),
                  Port('wb_rst_i', 'wb_rst_i')]
-        s = slave.name
+        s = device.name
 
         name_list = []
-        for m in slave.masters:
+        for m in device.hosts:
             name_list += ['wb_'+ m.name + '_' + s + '_{0}']
-        for p in WB_MASTER_PORTS:
+        for p in WB_HOST_PORTS:
             ports += [Port('wbm_'+p.name+'_i', '{' + ', '.join(name_list).format(p.name, 'i')+'}')]
-        for p in WB_SLAVE_PORTS:
+        for p in WB_DEVICE_PORTS:
             _name = 'dat' if p.name == 'rdt' else p.name
             ports += [Port('wbm_'+_name+'_o', '{' + ', '.join(name_list).format(p.name, 'o')+'}')]
 
-        #Create slave connections
-        #If the slave's data width is 32, we don't need a wb_data_resize
-        if int(slave.datawidth) == 32:
+        #Create device connections
+        #If the device's data width is 32, we don't need a wb_data_resize
+        if int(device.datawidth) == 32:
             input_format = 'wb_%s_%s_i'
             output_format = 'wb_%s_%s_o'
-            for p in WB_MASTER_PORTS:
+            for p in WB_HOST_PORTS:
                 ports += [Port('wbs_' + p.name + '_o', output_format % (s, p.name))]
-            for p in WB_SLAVE_PORTS:
+            for p in WB_DEVICE_PORTS:
                 _name = 'dat' if p.name == 'rdt' else p.name
                 ports += [Port('wbs_' + _name + '_i', input_format % (s, p.name))]
         #Else, connect to the resizer
         else:
-            for p in WB_MASTER_PORTS:
+            for p in WB_HOST_PORTS:
                 ports += [Port('wbs_' + p.name + '_o', 'wb_resize_'+s+'_'+p.name)]
-            for p in WB_SLAVE_PORTS:
+            for p in WB_DEVICE_PORTS:
                 _name = 'dat' if p.name == 'rdt' else p.name
                 ports += [Port('wbs_' + _name + '_i', 'wb_resize_'+s+'_'+p.name)]
 
         self.verilog_writer.add(Instance('wb_arbiter', 'wb_arbiter_'+s,parameters, ports))
 
-    def _gen_resize(self, slave):
+    def _gen_resize(self, device):
         parameters = [Parameter('aw', 32)]
         parameters += [Parameter('mdw', 32)]
-        parameters += [Parameter('sdw', slave.datawidth)]
+        parameters += [Parameter('sdw', device.datawidth)]
         parameters += [Parameter('endian', '"{}"'.format(self.endian))]
-        s = slave.name
+        s = device.name
 
         ports =[]
-        #Create master connections
-        for p in WB_MASTER_PORTS:
+        #Create host connections
+        for p in WB_HOST_PORTS:
             ports += [Port('wbm_'+p.name+'_i', 'wb_resize_'+s+'_'+p.name)]
-        for p in WB_SLAVE_PORTS:
+        for p in WB_DEVICE_PORTS:
             _name = 'dat' if p.name == 'rdt' else p.name
             ports += [Port('wbm_'+_name+'_o', 'wb_resize_'+s+'_'+p.name)]
 
         input_format = 'wb_%s_%s_i'
         output_format = 'wb_%s_%s_o'
 
-        #Create slave connections
-        for p in WB_MASTER_PORTS:
+        #Create device connections
+        for p in WB_HOST_PORTS:
             if p.name != "sel":
                 ports.append(Port('wbs_' + p.name + '_o', output_format % (s, p.name)))
-        for p in WB_SLAVE_PORTS:
+        for p in WB_DEVICE_PORTS:
             _name = 'dat' if p.name == 'rdt' else p.name
             ports.append(Port('wbs_' + _name + '_i', input_format % (s, p.name)))
 
         self.verilog_writer.add(Instance('wb_data_resize', 'wb_data_resize_'+s,parameters, ports))
 
-        for p in WB_MASTER_PORTS:
-            wirename = 'wb_resize_{slave}_{port}'.format(slave=s, port=p.name)
+        for p in WB_HOST_PORTS:
+            wirename = 'wb_resize_{device}_{port}'.format(device=s, port=p.name)
             self.verilog_writer.add(Wire(wirename, p.width))
-        for p in WB_SLAVE_PORTS:
-            wirename = 'wb_resize_{slave}_{port}'.format(slave=s, port=p.name)
+        for p in WB_DEVICE_PORTS:
+            wirename = 'wb_resize_{device}_{port}'.format(device=s, port=p.name)
             self.verilog_writer.add(Wire(wirename, p.width))
 
-    def _gen_wishbone_master_port(self, master):
+    def _gen_wishbone_host_port(self, host):
         template_ports = []
-        for p in WB_MASTER_PORTS:
-            portname = 'wb_{master}_{port}_i'.format(master=master.name, port=p.name)
-            wirename = 'wb_{master}_{port}'.format(master=master.name, port=p.name)
+        for p in WB_HOST_PORTS:
+            portname = 'wb_{host}_{port}_i'.format(host=host.name, port=p.name)
+            wirename = 'wb_{host}_{port}'.format(host=host.name, port=p.name)
             self.verilog_writer.add(ModulePort(portname, 'input', p.width))
             self.template_writer.add(Wire(wirename, p.width))
             template_ports += [Port(portname, wirename)]
-        for p in WB_SLAVE_PORTS:
-            portname = 'wb_{master}_{port}_o'.format(master=master.name, port=p.name)
-            wirename = 'wb_{master}_{port}'.format(master=master.name, port=p.name)
+        for p in WB_DEVICE_PORTS:
+            portname = 'wb_{host}_{port}_o'.format(host=host.name, port=p.name)
+            wirename = 'wb_{host}_{port}'.format(host=host.name, port=p.name)
             self.verilog_writer.add(ModulePort(portname, 'output', p.width))
             self.template_writer.add(Wire(wirename, p.width))
             template_ports += [Port(portname, wirename)]
         return template_ports
 
-    def _gen_wishbone_port(self, slave):
+    def _gen_wishbone_port(self, device):
         template_ports = []
-        for p in WB_MASTER_PORTS:
-            portname = 'wb_{slave}_{port}_o'.format(slave=slave.name, port=p.name)
-            wirename = 'wb_{slave}_{port}'.format(slave=slave.name, port=p.name)
-            dw = int(WB_DATA_WIDTH[p.name] * slave.datawidth) or p.width
+        for p in WB_HOST_PORTS:
+            portname = 'wb_{device}_{port}_o'.format(device=device.name, port=p.name)
+            wirename = 'wb_{device}_{port}'.format(device=device.name, port=p.name)
+            dw = int(WB_DATA_WIDTH[p.name] * device.datawidth) or p.width
             self.verilog_writer.add(ModulePort(portname, 'output', dw))
             self.template_writer.add(Wire(wirename, dw))
             template_ports += [Port(portname, wirename)]
-        for p in WB_SLAVE_PORTS:
-            portname = 'wb_{slave}_{port}_i'.format(slave=slave.name, port=p.name)
-            wirename = 'wb_{slave}_{port}'.format(slave=slave.name, port=p.name)
-            dw = int(WB_DATA_WIDTH[p.name] * slave.datawidth) or p.width
+        for p in WB_DEVICE_PORTS:
+            portname = 'wb_{device}_{port}_i'.format(device=device.name, port=p.name)
+            wirename = 'wb_{device}_{port}'.format(device=device.name, port=p.name)
+            dw = int(WB_DATA_WIDTH[p.name] * device.datawidth) or p.width
             self.verilog_writer.add(ModulePort(portname, 'input', dw))
             self.template_writer.add(Wire(wirename, dw))
             template_ports += [Port(portname, wirename)]
         return template_ports
 
-    def _gen_bus_converter(self, bus, name, is_master, datawidth, datawidth_map, ports):
+    def _gen_bus_converter(self, bus, name, is_host, datawidth, datawidth_map, ports):
         converter_ports = [Port('wb_clk_i', 'wb_clk_i'),
             Port('wb_rst_i', 'wb_rst_i')]
         template_ports = []
 
-        out_direction = 'm2s' if is_master else 's2m'
+        out_direction = 'm2s' if is_host else 's2m'
 
         # Wishbone side
-        ms_type = 'm' if is_master else 's'
+        ms_type = 'm' if is_host else 's'
         # Foreign side
-        f_ms_type = 's' if is_master else 'm'
+        f_ms_type = 's' if is_host else 'm'
 
         # Create Wishbone connections
         wb_ports = []
-        wb_ports.extend([(p, 'm2s') for p in WB_MASTER_PORTS])
-        wb_ports.extend([(p, 's2m') for p in WB_SLAVE_PORTS])
+        wb_ports.extend([(p, 'm2s') for p in WB_HOST_PORTS])
+        wb_ports.extend([(p, 's2m') for p in WB_DEVICE_PORTS])
         for p, direction in wb_ports:
             pin_direction = 'output' if direction == out_direction else 'input'
             wirename = 'wb_{direction}_{name}_{port}'.format(
@@ -353,13 +371,13 @@ class WbIntercon:
     def write(self):
         file = self.output_file
         #Declare wires. Only conections between muxes and arbiters need explicit wires
-        for key, value in self.masters.items():
-            for slave in value.slaves:
-                if len(slave.masters)>1:
-                    for p in WB_MASTER_PORTS:
-                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
-                    for p in WB_SLAVE_PORTS:
-                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, slave.name, p.name), p.width))
+        for key, value in self.hosts.items():
+            for device in value.devices:
+                if len(device.hosts)>1:
+                    for p in WB_HOST_PORTS:
+                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, device.name, p.name), p.width))
+                    for p in WB_DEVICE_PORTS:
+                        self.verilog_writer.add(Wire('wb_{0}_{1}_{2}'.format(key, device.name, p.name), p.width))
 
         self.verilog_writer.add(ModulePort('wb_clk_i', 'input'))
         self.verilog_writer.add(ModulePort('wb_rst_i', 'input'))
@@ -368,18 +386,18 @@ class WbIntercon:
                           Port('wb_rst_i', 'wb_rst')]
         template_parameters = []
 
-        for master in self.masters.values():
-            self._gen_mux(master)
-            master_template_ports = self._gen_wishbone_master_port(master)
-            template_ports.extend(master_template_ports)
+        for host in self.hosts.values():
+            self._gen_mux(host)
+            host_template_ports = self._gen_wishbone_host_port(host)
+            template_ports.extend(host_template_ports)
 
-        for slave in self.slaves.values():
-            if len(slave.masters) > 1:
-                self._gen_arbiter(slave)
-            if int(slave.datawidth) < 32:
-                self._gen_resize(slave)
-            slave_template_ports = self._gen_wishbone_port(slave)
-            template_ports.extend(slave_template_ports)
+        for device in self.devices.values():
+            if len(device.hosts) > 1:
+                self._gen_arbiter(device)
+            if int(device.datawidth) < 32:
+                self._gen_resize(device)
+            device_template_ports = self._gen_wishbone_port(device)
+            template_ports.extend(device_template_ports)
 
         self.template_writer.add(Instance(self.name, self.name+'0',
                                           template_parameters, template_ports))
