@@ -112,7 +112,6 @@ class WbIntercon:
         data = ordered_load(open(config_file))
 
         config     = data['parameters']
-        files_root = data['files_root']
         self.vlnv       = data['vlnv']
 
         valid_endians = ['big', 'little']
