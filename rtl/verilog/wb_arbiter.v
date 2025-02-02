@@ -25,7 +25,8 @@
 module wb_arbiter
  #(parameter dw = 32,
    parameter aw = 32,
-   parameter num_masters = 0)
+   parameter num_hosts = 0,
+   parameter num_masters = num_hosts)
   (
    input wire			    wb_clk_i,
    input wire			    wb_rst_i,
