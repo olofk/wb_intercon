@@ -1,7 +1,8 @@
 CAPI=2:
 
-name : ::wb_intercon:1.4.1
+name : award-winning:wishbone:wb_intercon:1.4.2
 description : Wishbone Bus Interconnect utilities
+license: ISC
 
 filesets:
   rtl:
@@ -12,9 +13,9 @@ filesets:
       - rtl/verilog/wb_mux.v
     file_type : verilogSource
     depend:
-      - ">=verilog-arbiter-0-r1"
-      - cdc_utils
-      - wb_common
+      - "bmartini::verilog-arbiter"
+      - "award-winning:utils:cdc_utils"
+      - "award-winning:wishbone:wb_common"
 
   tb:
     files:
@@ -23,7 +24,9 @@ filesets:
       - bench/wb_arbiter_tb.v
       - bench/wb_intercon_tb.v
     file_type : verilogSource
-    depend: [">=vlog_tb_utils-1.1", ">=wb_bfm-1.1"]
+    depend:
+      - ">=fusesoc:utils:vlog_tb_utils:1.1.0"
+      - ">=award-winning:wishbone:wb_bfm:1.1.0"
 
   constraints:
     files : [data/wb_intercon.sdc: {file_type : SDC}]
