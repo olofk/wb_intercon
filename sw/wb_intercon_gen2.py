@@ -219,7 +219,7 @@ class WbIntercon:
         self.verilog_writer.add(Instance('wb_mux', 'wb_mux_'+m,parameters, ports))
 
     def _gen_arbiter(self, device):
-        parameters = [Parameter('num_hosts', len(device.hosts))]
+        parameters = [Parameter('num_masters', len(device.hosts))]
         ports = [Port('wb_clk_i', 'wb_clk_i'),
                  Port('wb_rst_i', 'wb_rst_i')]
         s = device.name
